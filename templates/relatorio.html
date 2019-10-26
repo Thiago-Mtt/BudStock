@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<title>Budstock-relatorios</title>
+		<meta charset="utf-8">
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='relatorio.css') }}">
+	</head>
+
+
+    <header> <img src="{{ url_for('static', filename='buda.PNG') }}" width="50" alt="Buda" title="Buda">
+
+        <h1>BUDSTOCK</h1>
+
+    </header>
+
+            <body>
+                <div id="background">
+
+                    <h2>Relatórios : {{estoque}}</h2>
+                    
+                    <form action="/estoque" id="atualizar" method="POST">  
+
+                    
+                        <input type="date" name="data" max="2019-12-31" min="2050-12-31"><br>
+                        <input id="pesquisar" type="submit" name="pesquisar" value="pesquisar">
+                        
+
+                    </form>
+
+                    <table>
+
+                            <tr>
+                               <!---->
+                              <th>Relatório de movimentações:</th> 
+                            </tr>
+
+                            <tr>
+                              <td><a href="">produto.pdf</a></td>
+                            </tr>
+
+
+                    </table>
+
+                        
+                             
+                             
+                            
+                  
+
+                    <p><a id="voltar" href="{{url_for('teste')}}">Voltar</a></p>
+
+
+                </div>
+            </body>
+
+			<footer>
+				<p id="fale">fale conosco</p>
+
+				<p id="link1"><a href="https://web.facebook.com/budstock.buda.1" title="página Budstock">Budstock no Facebook</a></p>
+				<p id="link2">email:budstock0000@gmail.com</p>
+				<p id="link3">telefone: 4002-8922 </p>
+			</footer>
+
+</html>
