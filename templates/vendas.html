@@ -1,73 +1,38 @@
-<!DOCTYPE html>
-<html>
-
-	<head>
-		<title>Budstock-vendas</title>
-		<meta charset="utf-8">
-		<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='vendas.css') }}">
-	</head>
-
-
-    <header> <img src="{{ url_for('static', filename='buda.PNG') }}" width="50" alt="Buda" title="Buda">
-
-        <h1>BUDSTOCK</h1>
-
-    </header>
-
-            <body>
-                <div id="background">
-
-                    <h2>Vendas : {{estoque}}</h2>
-                    
+Nome do Estoque : {{estoque}}
                     <form action="/estoque" id="atualizar" method="POST">
                         <table>
-                            
-                            <!--São duas sessões separadas.-->
-
                             <tr>
-                               <!--A sessao de produtos deve carregar todos os produtos no estoque e somente mostralos na tela-->
-                              <th>Produtos:</th> 
-                               <!--A sessão do carrinho deve mostrar todos os produtos que foram adicionados no carrinho-->
-                              <th>Carrinho:</th>
+                                <th>Numero:</th>
+                                <th>Nome:</th>
+                                <th>Preço:</th>
+                                <th>Quantidade:</th>
                             </tr>
+                            {% for li_tup in li_li_tup %}
+                          <tr>
 
-                            <tr>
-                              <td>produto</td>
-                              <td>preço</td>
-                              <td><input type="text" id="nomen" name="nomen" value=></td>
-                              <input id="add-carrinho" type="submit" name="carrinho" value="Adicionar ao carrinho">
-                            </tr>
-
-                            <tr>
-                              <td>produto</td>
-                              <td>quantidade</td>
-                              <td>subtotal</td>
-
-                              <td>total</td>
-                            </tr>
-
-
-
+                                {% for cod, valor in li_tup %}
+                            {% if 'quantidade' in cod %}    
+                            <td><input  type="number" id={{cod}} name={{cod}} value="0" min="0" step="1"></td>
+                            <td><button type="button"  onclick="mais('{{cod}}')">+</button></td>
+                            <td><button type="button"  onclick="menos('{{cod}}')">-</button></td>
+                            {% else %}
+                            <td><input type="text" id={{cod}} name={{cod}}  value={{valor}} readonly></td>
+                            {% endif %}
+                                {% endfor %}
+                          </tr>
+                             {% endfor %}
                         </table>
-
-                             <input id="comprar" type="submit" name="comprar" value="Comprar">
-                             
-                             
-                            
                     </form>
 
-                    <p><a id="voltar" href="{{url_for('teste')}}">Voltar</a></p>
+                    <script>
+                        function mais(cod) {
+                            document.getElementById(cod).value++
+                           }
+                           
+                        function menos(cod) {
+                            if ( document.getElementById(cod).value != 0 ){
+                                document.getElementById(cod).value--
+                            }
+                           }
 
-
-                </div>
-            </body>
-
-			<footer>
-				<p id="fale">fale conosco</p>
-
-				<p id="link1"><a href="https://web.facebook.com/budstock.buda.1" title="página Budstock">Budstock no Facebook</a></p>
-				<p id="link2">email:budstock0000@gmail.com</p>
-				<p id="link3">telefone: 4002-8922 </p>
-			</footer>
-
-</html>
+                        </script>

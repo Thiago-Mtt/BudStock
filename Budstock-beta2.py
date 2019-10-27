@@ -190,7 +190,14 @@ def pag_estoque():
             li_li_tup.append(y)
             y = []
         z = (z + 1) % 4
-    return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+    if "vendas" in request.form:
+        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+    else:
+        return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+
+@app.route("/venda", methods=['GET', 'POST'])
+def pag_venda():
+    return render_template('vendas.html')
 
 
 if __name__ == '__main__':
