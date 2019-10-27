@@ -139,43 +139,38 @@ def teste():
 
 @app.route("/estoque", methods=['GET', 'POST'])
 def pag_estoque():
+    # Metodos Get e Post para manter o nome do estoque na pagina
     if request.method == "GET":
         estoque_info = request.args.get('info')
     elif request.method == "POST":
         estoque_info = request.form["nome_estoque"]
     estoque = Estoque(estoque_info)
     estoque.criar_tabela()
-    # Checando se o Botão "Atualizar Valores" foi pressionado
-    x = 0
-    try:
-        x = request.form["atualizar"]
-        x = 1
-        print("X é igual á 1")
-    except Exception as e:
-        x = e
-    # Se o Botão foi pressionado:
-    if x == 1:
-        # Função para Atualizar a tabela
-        w = 0
-        for prods in estoque.mostrar_estoque():
-            z = str(w)
-            prod = Produto(request.form["numero" + z], request.form["nome" + z], request.form["quantidade" + z],
-                           request.form["preço" + z], estoque.estoque)
-            prod.alterar_produto(prods[0])
-            w = w + 1
-        # Função para Adicionar novo produto
-        prodnovo = Produto(request.form["numeron"], request.form["nomen"], request.form["preçon"],
-                           request.form["quantidaden"], estoque.estoque)
-        prodnovo.produto_novo()
-    # Função para Deletar um produto do estoque
-    else:
-        z = 2
-        for produto in estoque.mostrar_estoque():
-            y = str(z)
-            if y in request.form:
-                del_produto = Produto(produto[0], produto[1], produto[2], produto[3], estoque.estoque)
-                del_produto.remover_produto()
-            z = z + 1
+    if request.method == "POST":
+        # Checando se o Botão "Atualizar Valores" foi pressionado
+        if "atualizar" in request.form:
+            # Função para Atualizar a tabela
+            w = 0
+            for prods in estoque.mostrar_estoque():
+                z = str(w)
+                prod = Produto(request.form["numero" + z], request.form["nome" + z], request.form["quantidade" + z],
+                            request.form["preço" + z], estoque.estoque)
+                prod.alterar_produto(prods[0])
+                w = w + 1
+            # Função para Adicionar novo produto
+            prodnovo = Produto(request.form["numeron"], request.form["nomen"], request.form["preçon"],
+                            request.form["quantidaden"], estoque.estoque)
+            prodnovo.produto_novo()
+        # Função para Deletar um produto do estoque
+        else:
+            z = 2
+            for produto in estoque.mostrar_estoque():
+                y = str(z)
+                #Se um botao de deletar foi pressionado
+                if y in request.form:
+                    del_produto = Produto(produto[0], produto[1], produto[2], produto[3], estoque.estoque)
+                    del_produto.remover_produto()
+                z = z + 1
 
     # Função para criar os nomes ( começando por 0) das informações para o request_form
     prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
