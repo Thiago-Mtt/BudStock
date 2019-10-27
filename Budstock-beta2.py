@@ -115,20 +115,21 @@ app = Flask(__name__)
 
 @app.route("/", methods=['GET', 'POST'])
 def teste():
-    if request.method == "POST":
-        if "add" in request.form:
-            stock = Estoque(request.form.get('novo_estoque'))
-            Estoque.criar_tabela(stock)
     repeat = Estoque.mostrar_estoques()
     tam = len(repeat)
-    for i in range(tam):
-        repeat[i]
-        if request.method == "POST":
-            for re in repeat:
+    if request.method == "POST":
+        #Confere se algum estoque foi deletado e deleta
+        for i in range(tam):
+            repeat[i]
+            for re in repeat:    
                 if str(re[1]) in request.form:
                     estoque = re[1]
                     Estoque.remover_estoque(str(estoque))
-
+        #Confere se algum estoque foi adicionado e adiciona
+        if "add" in request.form:
+            stock = Estoque(request.form.get('novo_estoque'))
+            Estoque.criar_tabela(stock)
+    
     lista = []
     repeat = Estoque.mostrar_estoques()
     for re in repeat:
