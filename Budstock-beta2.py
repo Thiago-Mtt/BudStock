@@ -48,7 +48,7 @@ class Estoque:
     def mostrar_estoque(self):
         # Para testes: printa o estoque
         with conn:
-            c.execute("SELECT numero,nome,preço,quantidade FROM [" +self.estoque+ "]")
+            c.execute("SELECT numero,nome,preço,quantidade FROM [" +self.estoque+ "] ORDER BY numero")
         return (c.fetchall())
 
     @staticmethod
@@ -91,25 +91,17 @@ class Produto:
         # Metodo criado a fim do objeto utilizado possuir 1 ou mais atributos a serem atualizados
         # Caso o Numero OU o Nome já estejam ocupados, o metodo não atualiza o produto
         # c.execute("SELECT * FROM "+self.estoque_nome+" WHERE nome=? OR numero=? ",(self.nome,self.numero))
-        print("inicio de alterar_produto")
         c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE numero=? ", (self.numero,))
         check = c.fetchone()
-        print(check)
-        print(self.numero)
-        print(nro_prod)
         if not check or int(self.numero) == int(nro_prod):
-            print("pós primeiro if de alterar_produto")
             c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE nome=? ", (self.nome,))
             check = c.fetchone()
-            print(check)
             if not check or check[0] == nro_prod:
-                print("pós segundo if de alterar_produto")
                 if self.numero and self.nome and self.preço and self.quantidade:
                     c.execute(
                         "UPDATE [" + self.estoque_nome + "] SET numero=?, nome=?, preço=?, quantidade=?  WHERE numero=?",
                         (self.numero, self.nome, self.preço, self.quantidade, nro_prod))
                     conn.commit()
-                    print("pós commit em alterar_produto")
 
     def remover_produto(self):
 
