@@ -6,10 +6,22 @@ conn = sqlite3.connect('teste.db', check_same_thread=False)
 conn.execute("PRAGMA foreign_keys = 1")
 c = conn.cursor()
 
+#Cria a tabela com os estoques
 c.execute("""CREATE TABLE IF NOT EXISTS Estoques(
     codEstoque INTEGER PRIMARY KEY NOT NULL,
     nome TEXT NOT NULL
 )""")
+
+conn.commit()
+
+#Cria a tabela para as sessões
+c.execute("""CREATE TABLE IF NOT EXISTS Sessoes(
+            receita REAL NOT NULL,
+            hora_ini TEXT NOT NULL,
+            hora_fim TEXT NOT NULL,
+            estoque INTEGER NOT NULL
+            FOREIGN KEY (estoque) REFERENCES Estoques(codEstoque) ON DELETE CASCADE
+            )""")
 
 conn.commit()
 
@@ -33,8 +45,8 @@ class Estoque:
                 c.execute("""CREATE TABLE IF NOT EXISTS [""" + self.estoque + """](
             numero INTEGER NOT NULL,
             nome TEXT NOT NULL,
-            quantidade INTEGER NOT NULL,
             preço REAL NOT NULL,
+            quantidade INTEGER NOT NULL,
             estoque INTEGER NOT NULL,
             FOREIGN KEY (estoque) REFERENCES Estoques(codEstoque) ON DELETE CASCADE
             )""")
@@ -45,6 +57,8 @@ class Estoque:
         # Remove o estoque do Banco e os produtos contidos nesse estoque
         with conn:
             c.execute("DELETE FROM Estoques WHERE nome=?", (nome_estoque,))
+        with conn:
+            c.execute("DROP TABLE [IF EXISTS] ["+nome_estoque+"]")
 
     def mostrar_estoque(self):
         # Para testes: printa o estoque
@@ -57,6 +71,13 @@ class Estoque:
         # Para testes: printa os estoques no banco
         c.execute("SELECT * FROM Estoques")
         return c.fetchall()
+
+    @staticmethod
+    def cod_estoque(nome):
+        # retorna a chave do estoque
+        c.execute("SELECT * FROM Estoques WHERE nome = ?", ( nome,))
+        lista = c.fetchone()
+        return lista[0]
 
 
 class Produto:
@@ -109,6 +130,81 @@ class Produto:
         # Remove o produto de sua tabela/estoque correspondente
         with conn:
             c.execute("DELETE FROM [" + self.estoque_nome + "] WHERE numero=?", (self.numero,))
+
+class Sessão:
+
+    def __init__(self, estoque_nome, hora_ini, receita = 0, hora_fim = 0, ):
+        self.receita = receita
+        self.hora_ini = hora_ini
+        self.hora_fim = hora_fim
+        self.estoque_nome = estoque_nome
+
+    def sessao_nova (self):
+        # Insere a sessão na tabela de sessões e cria uma tabela para os produtos vendidos   
+        with conn:
+            c.execute("INSERT INTO Sessoes VALUES (?, ?, ?, ?)", ( self.receita, self.hora_ini, 
+                                                                  self.hora_fim, Estoque.cod_estoque(self.estoque_nome)))
+            conn.commit()
+        with conn:
+            c.execute("""CREATE TABLE IF NOT EXISTS [""" + self.estoque_nome + """_vendidos](
+            numero INTEGER NOT NULL,
+            nome TEXT NOT NULL,
+            preço REAL NOT NULL,
+            quantidade INTEGER NOT NULL
+            )""")
+
+    def adicionar_receita (self, valor):
+        cod = Estoque.cod_estoque(self.estoque_nome)
+        c.execute("SELECT receita FROM Sessoes WHERE estoque=? ", ( cod,))
+        check = c.fetchone()
+        x = check[0]
+        x = x + valor
+        c.execute("UPDATE Sessoes SET receita=? WHERE estoque=?",( x, cod))
+        conn.commit()
+    
+    def adicionar_hora_fim (self, hora):
+        c.execute("UPDATE Sessoes SET hora_fim=? WHERE estoque=?",( hora, Estoque.cod_estoque(self.estoque_nome)))
+        conn.commit()
+
+    def fechar_sessao (self):
+        with conn:
+            c.execute("DELETE FROM Sessoes WHERE estoque=?", (Estoque.cod_estoque(self.estoque_nome),))
+        with conn:
+            c.execute("DROP TABLE [IF EXISTS] ["+self.estoque_nome+"_vendidos]")
+
+
+
+class Prod_Vendido:
+
+    def __init__(self, numero, nome, quantidade, preço, estoque_nome):
+            self.numero = numero
+            self.nome = nome
+            self.quantidade = quantidade
+            self.preço = preço
+            self.estoque_nome = estoque_nome
+
+    
+    def vendido(self):
+        c.execute("SELECT numero FROM [" + self.estoque_nome + "_vendidos] WHERE numero=? ",
+                                                             (self.estoque_nome,self.numero))
+        check = c.fetchone()
+        if check:
+            c.execute("SELECT quantidade FROM [" + self.estoque_nome + "_vendidos] WHERE numero=? ", 
+                                                                    (self.estoque_nome,self.numero))
+            check = c.fetchone()
+            x = check[0]
+            x = x + self.quantidade
+            c.execute("UPDATE [" + self.estoque_nome + "_vendidos] SET quantidade=?  WHERE numero=?",
+                                                                    (self.estoque_nome, x, self.numero))
+            conn.commit()
+        else:
+            c.execute("INSERT INTO [" + self.estoque_nome + "_vendidos] VALUES (?, ?, ?, ?)", (self.numero, self.nome,
+                                                                                           self.preço, self.quantidade))
+            conn.commit()
+
+
+
+
 
 
 app = Flask(__name__)
@@ -221,7 +317,18 @@ def pag_vendas():
                 li_li_tup.append(y)
                 y = []
             z = (z + 1) % 4
+
+        #Cria 2 tabelas correspondentes ao estoque, 1 para  Sessão/Relatório, 1 para o Carrinho
+        nome_car = request.form["nome_estoque"]+"car"
+        car = Estoque(nome_car)
+        car.criar_tabela() 
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+    if request.method == "POST":
+        if "carrinho" in request.method:
+            nome_car = request.form["nome_estoque"]+"car"
+            car = Estoque(nome_car)
+            car.criar_tabela()
+            
 
 
 if __name__ == '__main__':
