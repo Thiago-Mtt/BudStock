@@ -1,5 +1,6 @@
 from flask import Flask, render_template, url_for, flash, redirect, request
 import sqlite3
+from datetime import datetime
 
 conn = sqlite3.connect('teste.db', check_same_thread=False)
 conn.execute("PRAGMA foreign_keys = 1")
@@ -146,6 +147,9 @@ def pag_estoque():
         estoque_info = request.form["nome_estoque"]
     estoque = Estoque(estoque_info)
     estoque.criar_tabela()
+    # Checando de o Botão " Vendas" foi pressionado
+    if "vendas" in request.form:
+        return redirect(url_for('pag_vendas',info=estoque.estoque))
     if request.method == "POST":
         # Checando se o Botão "Atualizar Valores" foi pressionado
         if "atualizar" in request.form:
@@ -190,14 +194,34 @@ def pag_estoque():
             li_li_tup.append(y)
             y = []
         z = (z + 1) % 4
-    if "vendas" in request.form:
-        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
-    else:
-        return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+    return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
 
-@app.route("/venda", methods=['GET', 'POST'])
-def pag_venda():
-    return render_template('vendas.html')
+
+
+@app.route("/vendas", methods=['GET','POST'])
+def pag_vendas():
+    if request.method == "GET":
+        estoque_info = request.args.get('info')
+        estoque = Estoque(estoque_info)
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        for info in prod:
+            j = str(k)
+            tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
 
 
 if __name__ == '__main__':

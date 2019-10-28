@@ -1,5 +1,7 @@
-Nome do Estoque : {{estoque}}
-                    <form action="/estoque" id="atualizar" method="POST">
+Estoque : {{estoque}}
+Carrinho :
+
+                    <form action="/vendas" id="atualizar" method="POST">
                         <table>
                             <tr>
                                 <th>Numero:</th>
@@ -23,6 +25,11 @@ Nome do Estoque : {{estoque}}
                              {% endfor %}
                         </table>
                     </form>
+
+                    <input id="encerrar" type="submit" name="encerrar" value="Encerrar Sessão">
+                    <input id="reset" type="button" name="reset" value="Reiniciar">
+                    <input id="carrinho" type="submit" name="carrinho" value="Confirmar">
+                    <input type="hidden" name="nome_estoque" value="{{estoque}}">
 
                     <script>
                         function mais(cod) {
