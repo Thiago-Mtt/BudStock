@@ -1,7 +1,7 @@
 Estoque : {{estoque}}
 Carrinho :
 
-                    <form action="/vendas" id="atualizar" method="POST">
+                    <form action="/carrinho" id="atualizar" method="POST">
                         <table>
                             <tr>
                                 <th>Numero:</th>
@@ -24,13 +24,13 @@ Carrinho :
                           </tr>
                              {% endfor %}
                         </table>
-                    </form>
+                    
 
                     <input id="encerrar" type="submit" name="encerrar" value="Encerrar Sessão">
                     <input id="reset" type="button" name="reset" value="Reiniciar">
                     <input id="carrinho" type="submit" name="carrinho" value="Confirmar">
                     <input type="hidden" name="nome_estoque" value="{{estoque}}">
-
+                    </form>
                     <script>
                         function mais(cod) {
                             document.getElementById(cod).value++

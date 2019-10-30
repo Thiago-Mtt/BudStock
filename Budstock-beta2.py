@@ -19,7 +19,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS Sessoes(
             receita REAL NOT NULL,
             hora_ini TEXT NOT NULL,
             hora_fim TEXT NOT NULL,
-            estoque INTEGER NOT NULL
+            estoque INTEGER NOT NULL,
             FOREIGN KEY (estoque) REFERENCES Estoques(codEstoque) ON DELETE CASCADE
             )""")
 
@@ -131,27 +131,33 @@ class Produto:
         with conn:
             c.execute("DELETE FROM [" + self.estoque_nome + "] WHERE numero=?", (self.numero,))
 
-class Sessão:
+class Sessao:
 
-    def __init__(self, estoque_nome, hora_ini, receita = 0, hora_fim = 0, ):
+    def __init__(self, estoque_nome, hora_ini, receita = 0, hora_fim = "0/0/0", ):
         self.receita = receita
         self.hora_ini = hora_ini
         self.hora_fim = hora_fim
         self.estoque_nome = estoque_nome
 
     def sessao_nova (self):
-        # Insere a sessão na tabela de sessões e cria uma tabela para os produtos vendidos   
-        with conn:
-            c.execute("INSERT INTO Sessoes VALUES (?, ?, ?, ?)", ( self.receita, self.hora_ini, 
-                                                                  self.hora_fim, Estoque.cod_estoque(self.estoque_nome)))
-            conn.commit()
+        # Insere a sessão na tabela de sessões e cria uma tabela para os produtos vendidos
+        # Se a sessão nao foi encerrada, os dados antigos permanecerão
+        cod = Estoque.cod_estoque(self.estoque_nome)
+        c.execute("SELECT * FROM Sessoes WHERE estoque=? ", (cod,))
+        check = c.fetchone()
+        print("printando check:")
+        print(check)
+        if not check:
+            with conn:
+                c.execute("INSERT INTO Sessoes VALUES (?, ?, ?, ?)", ( self.receita, self.hora_ini, 
+                                                                  self.hora_fim, cod))
         with conn:
             c.execute("""CREATE TABLE IF NOT EXISTS [""" + self.estoque_nome + """_vendidos](
-            numero INTEGER NOT NULL,
-            nome TEXT NOT NULL,
-            preço REAL NOT NULL,
-            quantidade INTEGER NOT NULL
-            )""")
+                numero INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                preço REAL NOT NULL,
+                quantidade INTEGER NOT NULL
+                )""")
 
     def adicionar_receita (self, valor):
         cod = Estoque.cod_estoque(self.estoque_nome)
@@ -299,6 +305,14 @@ def pag_vendas():
     if request.method == "GET":
         estoque_info = request.args.get('info')
         estoque = Estoque(estoque_info)
+
+        #Insere a sessao na tabela de Sessoes e cria uma tabela Prod_vendidos para a sessão
+        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+        print(data_hora)
+        sessao = Sessao(estoque_info, data_hora)
+        sessao.sessao_nova()
+
+
         # Função para criar os nomes ( começando por 0) das informações para o request_form
         prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
         prod = list(prod.split(","))
@@ -317,19 +331,14 @@ def pag_vendas():
                 li_li_tup.append(y)
                 y = []
             z = (z + 1) % 4
-
-        #Cria 2 tabelas correspondentes ao estoque, 1 para  Sessão/Relatório, 1 para o Carrinho
-        nome_car = request.form["nome_estoque"]+"car"
-        car = Estoque(nome_car)
-        car.criar_tabela() 
+        
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
-    if request.method == "POST":
-        if "carrinho" in request.method:
-            nome_car = request.form["nome_estoque"]+"car"
-            car = Estoque(nome_car)
-            car.criar_tabela()
-            
+                   
 
+@app.route("/carrinho", methods=['POST'])
+def pag_carrinho():
+    print(request.form)
+    return "printado"
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=True)
