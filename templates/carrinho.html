@@ -1,0 +1,27 @@
+Estoque : {{estoque}}
+Compra :
+
+                    <form action="/carrinho" id="atualizar" method="POST">
+                        <table>
+                            <tr>
+                                <th>Numero:</th>
+                                <th>Nome:</th>
+                                <th>Preço:</th>
+                                <th>Quantidade:</th>
+                            </tr>
+                            {% for dic in li_dic %}
+                          <tr>
+
+                                {% for cod, valor in dic.items() %}
+                            <td><input type="text" id={{cod}} name={{cod}}  value={{valor}} readonly></td>
+                                {% endfor %}
+                          </tr>
+                             {% endfor %}
+                        </table>
+                    
+
+                    <input id="cancelar" type="submit" name="cancelar" value="Cancelar">
+                    <input id="alterar" type="submit" name="alterar" value="Alterar">
+                    <input id="confirmar" type="submit" name="confirmar" value="Confirmar">
+                    <input type="hidden" name="nome_estoque" value="{{estoque}}">
+                    </form>

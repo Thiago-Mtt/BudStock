@@ -58,7 +58,7 @@ class Estoque:
         with conn:
             c.execute("DELETE FROM Estoques WHERE nome=?", (nome_estoque,))
         with conn:
-            c.execute("DROP TABLE [IF EXISTS] ["+nome_estoque+"]")
+            c.execute("DROP TABLE IF EXISTS ["+nome_estoque+"]")
 
     def mostrar_estoque(self):
         # Para testes: printa o estoque
@@ -83,28 +83,26 @@ class Estoque:
 class Produto:
     # 5 ATRIBUTOS; 3 METODOS
 
-    def __init__(self, numero, nome, quantidade, preço, estoque_nome):
+    def __init__(self, numero, nome, preço, quantidade, estoque_nome):
 
         # O ultimo atributo recebe o nome do estoque ao qual o produto pertence
         self.numero = numero
         self.nome = nome
-        self.quantidade = quantidade
         self.preço = preço
+        self.quantidade = quantidade
         self.estoque_nome = estoque_nome
 
     def produto_novo(self):
 
         # Insere o produto na tabela correspondente ao seu estoque
         # Caso o Numero OU o Nome já estejam ocupados, o metodo não insere o produto
-        c.execute("SELECT * FROM " + self.estoque_nome + " WHERE nome=? OR numero=? ", (self.nome, self.numero))
+        c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE nome=? OR numero=? ", (self.nome, self.numero))
         check = c.fetchone()
         if not check:
             if self.numero and self.nome and self.preço and self.quantidade:
                 c.execute("SELECT * FROM Estoques WHERE nome = ?", (self.estoque_nome,))
                 lista = c.fetchone()
-                c.execute("INSERT INTO [" + self.estoque_nome + "] VALUES (?, ?, ?, ?, ?)", (self.numero, self.nome,
-                                                                                           self.preço, self.quantidade,
-                                                                                           lista[0]))
+                c.execute("INSERT INTO [" + self.estoque_nome + "] VALUES (?, ?, ?, ?, ?)", (self.numero, self.nome,self.preço, self.quantidade,lista[0]))
                 conn.commit()
 
     def alterar_produto(self, nro_prod):
@@ -159,8 +157,9 @@ class Sessao:
                 quantidade INTEGER NOT NULL
                 )""")
 
-    def adicionar_receita (self, valor):
-        cod = Estoque.cod_estoque(self.estoque_nome)
+    @staticmethod
+    def adicionar_receita (estoque, valor):
+        cod = Estoque.cod_estoque(estoque)
         c.execute("SELECT receita FROM Sessoes WHERE estoque=? ", ( cod,))
         check = c.fetchone()
         x = check[0]
@@ -168,15 +167,30 @@ class Sessao:
         c.execute("UPDATE Sessoes SET receita=? WHERE estoque=?",( x, cod))
         conn.commit()
     
-    def adicionar_hora_fim (self, hora):
-        c.execute("UPDATE Sessoes SET hora_fim=? WHERE estoque=?",( hora, Estoque.cod_estoque(self.estoque_nome)))
+    @staticmethod
+    def adicionar_hora_fim (estoque, hora):
+        c.execute("UPDATE Sessoes SET hora_fim=? WHERE estoque=?",( hora, Estoque.cod_estoque(estoque)))
         conn.commit()
 
-    def fechar_sessao (self):
+    @staticmethod
+    def get_vendidos (estoque):
+        c.execute("SELECT * FROM [" + estoque + "_vendidos] ")
+        check = c.fetchall()
+        return check
+
+    @staticmethod
+    def get_sessao (estoque):
+        c.execute("SELECT receita,hora_ini,hora_fim FROM Sessoes WHERE estoque=? ",(Estoque.cod_estoque(estoque),))
+        check = c.fetchall()
+        return check[0]
+
+
+    @staticmethod
+    def fechar_sessao (estoque):
         with conn:
-            c.execute("DELETE FROM Sessoes WHERE estoque=?", (Estoque.cod_estoque(self.estoque_nome),))
+            c.execute("DELETE FROM Sessoes WHERE estoque=?", (Estoque.cod_estoque(estoque),))
         with conn:
-            c.execute("DROP TABLE [IF EXISTS] ["+self.estoque_nome+"_vendidos]")
+            c.execute("DROP TABLE  ["+ estoque +"_vendidos]")
 
 
 
@@ -192,21 +206,30 @@ class Prod_Vendido:
     
     def vendido(self):
         c.execute("SELECT numero FROM [" + self.estoque_nome + "_vendidos] WHERE numero=? ",
-                                                             (self.estoque_nome,self.numero))
+                                                             (self.numero,))
         check = c.fetchone()
         if check:
             c.execute("SELECT quantidade FROM [" + self.estoque_nome + "_vendidos] WHERE numero=? ", 
-                                                                    (self.estoque_nome,self.numero))
+                                                                    (self.numero,))
             check = c.fetchone()
             x = check[0]
-            x = x + self.quantidade
+            x = x + int(self.quantidade)
             c.execute("UPDATE [" + self.estoque_nome + "_vendidos] SET quantidade=?  WHERE numero=?",
-                                                                    (self.estoque_nome, x, self.numero))
+                                                                    ( x, self.numero))
             conn.commit()
         else:
             c.execute("INSERT INTO [" + self.estoque_nome + "_vendidos] VALUES (?, ?, ?, ?)", (self.numero, self.nome,
                                                                                            self.preço, self.quantidade))
             conn.commit()
+        c.execute("SELECT quantidade FROM [" + self.estoque_nome + "] WHERE numero=? ",
+                                                             (self.numero,))
+        check = c.fetchone()
+        x = check[0]
+        x = x - int(self.quantidade)
+        c.execute("UPDATE [" + self.estoque_nome + "] SET quantidade=?  WHERE numero=?",
+                                                                    ( x, self.numero))
+        conn.commit()
+
 
 
 
@@ -259,13 +282,15 @@ def pag_estoque():
             w = 0
             for prods in estoque.mostrar_estoque():
                 z = str(w)
-                prod = Produto(request.form["numero" + z], request.form["nome" + z], request.form["quantidade" + z],
-                            request.form["preço" + z], estoque.estoque)
+                prod = Produto(request.form["numero" + z], request.form["nome" + z], request.form["preço" + z],
+                            request.form["quantidade" + z], estoque.estoque)
                 prod.alterar_produto(prods[0])
                 w = w + 1
             # Função para Adicionar novo produto
             prodnovo = Produto(request.form["numeron"], request.form["nomen"], request.form["preçon"],
                             request.form["quantidaden"], estoque.estoque)
+            print("valores inseridos")
+            print(prodnovo.numero,prodnovo.nome,prodnovo.preço,prodnovo.quantidade)
             prodnovo.produto_novo()
         # Função para Deletar um produto do estoque
         else:
@@ -281,6 +306,8 @@ def pag_estoque():
     # Função para criar os nomes ( começando por 0) das informações para o request_form
     prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
     prod = list(prod.split(","))
+    print("estoque:")
+    print(prod)
 
     li_li_tup = []
     y = []
@@ -337,8 +364,76 @@ def pag_vendas():
 
 @app.route("/carrinho", methods=['POST'])
 def pag_carrinho():
-    print(request.form)
-    return "printado"
+    if "carrinho" in request.form:
+        # Função para enviar os produtos selecionados para o carrinho usando dicionario
+        dic ={}
+        li_dic = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        while "numero"+str(z) in request.form:
+            for k in range(4):
+                dic[s[k]+str(z)] = request.form[s[k]+str(z)]
+            li_dic.append(dic)
+            dic = {}
+            z = z+1
+        print(li_dic)
+        return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"] )
+    elif "confirmar" in request.form:
+        # Função para confirmar a venda dos produtos, retirar quantidade do estoque e adicionar na tabela _vendidos
+        estoque = Estoque(request.form["nome_estoque"])
+        prod_v = Prod_Vendido(0,"0",0,0,estoque.estoque)
+        z = 0
+        val = 0
+        while "numero"+str(z) in request.form:
+            prod_v.numero = request.form["numero"+str(z)]
+            prod_v.nome = request.form["nome"+str(z)]
+            prod_v.preço = request.form["preço"+str(z)]
+            prod_v.quantidade = request.form["quantidade"+str(z)]
+            prod_v.vendido()
+            val = val + float(prod_v.preço)*int(prod_v.quantidade)
+            z = z+1
+        Sessao.adicionar_receita(estoque.estoque, val)
+
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        for info in prod:
+            j = str(k)
+            tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        
+        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+    elif "encerrar" in request.form:
+        return redirect(url_for('pag_relatorio',info=request.form["nome_estoque"]))
+
+@app.route("/relatorio", methods=['GET'])
+def pag_relatorio():
+    if request.method == 'GET':
+        estoque_info = request.args.get('info')
+        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+        Sessao.adicionar_hora_fim(estoque_info, data_hora)
+        li_li = Sessao.get_vendidos(estoque_info)
+        sess = Sessao.get_sessao(estoque_info)
+        Sessao.fechar_sessao(estoque_info)
+        return render_template('sessao_fim.html', receita = sess[0], hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info)
+            
+
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=True)

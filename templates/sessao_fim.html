@@ -1,0 +1,20 @@
+<h1>Relatórios : {{estoque}}</h1>
+<h2>Receita : {{receita}}    Hora_Ini : {{hora_ini}}     Hora_Fim : {{hora_fim}}</h2>
+<h3>Produtos vendidos:</h3>
+<table>
+    <tr>
+        <th>Numero:</th>
+        <th>Nome:</th>
+        <th>Preço:</th>
+        <th>Quantidade:</th>
+    </tr>
+    {% for li in li_li %}
+  <tr>
+        {% for valor in li %}
+    <td>{{valor}}</td>
+        {% endfor %}
+  </tr>
+     {% endfor %}
+</table>
+
+<p><a id="voltar" href="{{url_for('pag_estoque', info = estoque)}}">Voltar para {{estoque}}</a></p>
