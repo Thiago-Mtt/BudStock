@@ -96,14 +96,22 @@ class Produto:
 
         # Insere o produto na tabela correspondente ao seu estoque
         # Caso o Numero OU o Nome já estejam ocupados, o metodo não insere o produto
-        c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE nome=? OR numero=? ", (self.nome, self.numero))
-        check = c.fetchone()
-        if not check:
-            if self.numero and self.nome and self.preço and self.quantidade:
-                c.execute("SELECT * FROM Estoques WHERE nome = ?", (self.estoque_nome,))
-                lista = c.fetchone()
-                c.execute("INSERT INTO [" + self.estoque_nome + "] VALUES (?, ?, ?, ?, ?)", (self.numero, self.nome,self.preço, self.quantidade,lista[0]))
-                conn.commit()
+        if self.numero  and self.nome and self.preço and self.quantidade:
+            try:
+                int(self.numero)
+                float(self.preço)
+                int(self.quantidade)
+                c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE nome=? OR numero=? ", (self.nome, self.numero))
+                check = c.fetchone()
+                if not check:
+                    if int(self.quantidade) >= 0:
+                        c.execute("SELECT * FROM Estoques WHERE nome = ?", (self.estoque_nome,))
+                        lista = c.fetchone()
+                        c.execute("INSERT INTO [" + self.estoque_nome + "] VALUES (?, ?, ?, ?, ?)", (self.numero, self.nome,self.preço, self.quantidade,lista[0]))
+                        conn.commit()
+            except Exception as inst:
+                print (inst)
+                pass
 
     def alterar_produto(self, nro_prod):
 
@@ -111,17 +119,25 @@ class Produto:
         # Metodo criado a fim do objeto utilizado possuir 1 ou mais atributos a serem atualizados
         # Caso o Numero OU o Nome já estejam ocupados, o metodo não atualiza o produto
         # c.execute("SELECT * FROM "+self.estoque_nome+" WHERE nome=? OR numero=? ",(self.nome,self.numero))
-        c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE numero=? ", (self.numero,))
-        check = c.fetchone()
-        if not check or int(self.numero) == int(nro_prod):
-            c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE nome=? ", (self.nome,))
-            check = c.fetchone()
-            if not check or check[0] == nro_prod:
-                if self.numero and self.nome and self.preço and self.quantidade:
-                    c.execute(
-                        "UPDATE [" + self.estoque_nome + "] SET numero=?, nome=?, preço=?, quantidade=?  WHERE numero=?",
-                        (self.numero, self.nome, self.preço, self.quantidade, nro_prod))
-                    conn.commit()
+        if self.numero  and self.nome and self.preço and self.quantidade:
+            try:
+                int(self.numero)
+                float(self.preço)
+                int(self.quantidade)
+                c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE numero=? ", (self.numero,))
+                check = c.fetchone()
+                if not check or int(self.numero) == int(nro_prod):
+                    c.execute("SELECT * FROM [" + self.estoque_nome + "] WHERE nome=? ", (self.nome,))
+                    check = c.fetchone()
+                    if not check or check[0] == nro_prod:
+                        if int(self.quantidade) >= 0 :
+                            c.execute(
+                                "UPDATE [" + self.estoque_nome + "] SET numero=?, nome=?, preço=?, quantidade=?  WHERE numero=?",
+                                (self.numero, self.nome, self.preço, self.quantidade, nro_prod))
+                            conn.commit()
+            except Exception as inst:
+                print (inst)
+                pass
 
     def remover_produto(self):
 
