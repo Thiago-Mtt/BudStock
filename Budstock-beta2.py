@@ -159,8 +159,6 @@ class Sessao:
         cod = Estoque.cod_estoque(self.estoque_nome)
         c.execute("SELECT * FROM Sessoes WHERE estoque=? ", (cod,))
         check = c.fetchone()
-        print("printando check:")
-        print(check)
         if not check:
             with conn:
                 c.execute("INSERT INTO Sessoes VALUES (?, ?, ?, ?)", ( self.receita, self.hora_ini, 
@@ -322,8 +320,6 @@ def pag_estoque():
     # Função para criar os nomes ( começando por 0) das informações para o request_form
     prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
     prod = list(prod.split(","))
-    print("estoque:")
-    print(prod)
 
     li_li_tup = []
     y = []
@@ -386,13 +382,15 @@ def pag_carrinho():
         li_dic = []
         s = ["numero", "nome", "preço", "quantidade"]
         z = 0
+        w = 0
         while "numero"+str(z) in request.form:
-            for k in range(4):
-                dic[s[k]+str(z)] = request.form[s[k]+str(z)]
-            li_dic.append(dic)
-            dic = {}
+            if int(request.form["quantidade"+str(z)]) > 0 :
+                for k in range(4):
+                    dic[s[k]+str(w)] = request.form[s[k]+str(z)]
+                li_dic.append(dic)
+                w = w + 1
+                dic = {}
             z = z+1
-        print(li_dic)
         return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"] )
     elif "confirmar" in request.form:
         # Função para confirmar a venda dos produtos, retirar quantidade do estoque e adicionar na tabela _vendidos
@@ -430,6 +428,67 @@ def pag_carrinho():
             z = (z + 1) % 4
         
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+    elif "cancelar" in request.form:
+        estoque = Estoque(request.form["nome_estoque"])
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        for info in prod:
+            j = str(k)
+            tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        
+        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+        
+    elif "alterar" in request.form:
+        estoque = Estoque(request.form["nome_estoque"])
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        w = 0
+        u = 0
+        for info in prod:
+            j = str(k)
+            print(s[z])
+            if "numero" + str(w) in request.form:
+                if z == 0 and int(info) == int(request.form["numero" + str(w)]):
+                    print("dentro de if numero")
+                    u = 1
+            if z == 3 and u == 1:
+                tup = (s[z] + j, request.form["quantidade" + str(w)])
+                print(tup)
+                w = w+1
+                u = 0
+            elif z == 3:
+                tup = (s[z] + j, 0)
+            else :
+                tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        
+        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque, atualizar = True)
+
     elif "encerrar" in request.form:
         return redirect(url_for('pag_relatorio',info=request.form["nome_estoque"]))
 

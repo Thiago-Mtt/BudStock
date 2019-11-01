@@ -13,8 +13,12 @@ Carrinho :
                           <tr>
 
                                 {% for cod, valor in li_tup %}
-                            {% if 'quantidade' in cod %}    
+                            {% if 'quantidade' in cod %}
+                            {% if atualizar %}
+                            <td><input  type="number" id={{cod}} name={{cod}} value={{valor}} min="0" step="1"></td>
+                            {% else %}    
                             <td><input  type="number" id={{cod}} name={{cod}} value="0" min="0" step="1"></td>
+                            {% endif %}
                             <td><button type="button"  onclick="mais('{{cod}}')">+</button></td>
                             <td><button type="button"  onclick="menos('{{cod}}')">-</button></td>
                             {% else %}
