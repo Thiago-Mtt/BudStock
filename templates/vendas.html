@@ -31,11 +31,11 @@ Carrinho :
                     
 
                     <input id="encerrar" type="submit" name="encerrar" value="Encerrar Sessão">
-                    <input id="reset" type="button" name="reset" value="Reiniciar">
+                    <input id="reset" type="submit" name="reset" value="Reiniciar">
                     <input id="carrinho" type="submit" name="carrinho" value="Confirmar">
                     <input type="hidden" name="nome_estoque" value="{{estoque}}">
                     </form>
-                    <script>
+                    <script type="text/javascript">
                         function mais(cod) {
                             document.getElementById(cod).value++
                            }
@@ -46,4 +46,5 @@ Carrinho :
                             }
                            }
 
-                        </script>
+                    </script>
+                        

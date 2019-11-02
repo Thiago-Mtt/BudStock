@@ -188,7 +188,7 @@ class Sessao:
 
     @staticmethod
     def get_vendidos (estoque):
-        c.execute("SELECT * FROM [" + estoque + "_vendidos] ")
+        c.execute("SELECT * FROM [" + estoque + "_vendidos] ORDER BY numero ")
         check = c.fetchall()
         return check
 
@@ -383,15 +383,45 @@ def pag_carrinho():
         s = ["numero", "nome", "preço", "quantidade"]
         z = 0
         w = 0
+        val = 0
+        preço = 0
         while "numero"+str(z) in request.form:
             if int(request.form["quantidade"+str(z)]) > 0 :
                 for k in range(4):
                     dic[s[k]+str(w)] = request.form[s[k]+str(z)]
+                    if k == 2:
+                        preço = request.form[s[k]+str(z)]
+                    if k == 3:
+                        val = val + float(preço)*int(request.form[s[k]+str(z)])
+                        preço = 0
                 li_dic.append(dic)
                 w = w + 1
                 dic = {}
             z = z+1
-        return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"] )
+        return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"], subtotal = val )
+    elif "reset" in request.form:
+        estoque = Estoque(request.form["nome_estoque"])
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        for info in prod:
+            j = str(k)
+            tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        
+        return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+
     elif "confirmar" in request.form:
         # Função para confirmar a venda dos produtos, retirar quantidade do estoque e adicionar na tabela _vendidos
         estoque = Estoque(request.form["nome_estoque"])
