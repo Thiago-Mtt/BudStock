@@ -5,6 +5,7 @@ from fpdf import FPDF, HTMLMixin
 from collections import OrderedDict
 
 class MyFPDF(FPDF, HTMLMixin):
+    #Necessário para a conversao de html para pdf
     pass
 
 conn = sqlite3.connect('teste.db', check_same_thread=False)
@@ -12,6 +13,7 @@ conn.execute("PRAGMA foreign_keys = 1")
 c = conn.cursor()
 
 #Cria a tabela com os estoques
+#Tabela principal
 c.execute("""CREATE TABLE IF NOT EXISTS Estoques(
     codEstoque INTEGER PRIMARY KEY NOT NULL,
     nome TEXT NOT NULL
@@ -19,7 +21,11 @@ c.execute("""CREATE TABLE IF NOT EXISTS Estoques(
 
 conn.commit()
 
-#Cria a tabela para as sessões
+#Cria a tabela para as Sessões (Relação 1 para N)
+#As linhas guardam os dados referentes a sessão de cada estoque
+#Cada estoque pode ter somente 1 sessão ativa
+#As sessões são mantidas até esta ser encerrada pelo usuário
+#Ao deletar o estoque, a sessão ativa é deletada da tabela de Sessões
 c.execute("""CREATE TABLE IF NOT EXISTS Sessoes(
             receita REAL NOT NULL,
             hora_ini TEXT NOT NULL,
@@ -30,7 +36,9 @@ c.execute("""CREATE TABLE IF NOT EXISTS Sessoes(
 
 conn.commit()
 
-#Cria a tabela para os relatórios
+#Cria a tabela para os arquivos html dos relatorios (Relação 1 para N)
+#Uma tabela para todos os relatórios
+#Funciona de forma similar a tabela de Sessões
 c.execute("""CREATE TABLE IF NOT EXISTS Relatorios(
             hora_ini TEXT NOT NULL,
             rel_html BLOB NOT NULL,
@@ -231,6 +239,7 @@ class Sessao:
 
     @staticmethod
     def adicionar_receita (estoque, valor):
+        #Adiciona o valor do subtotal de um carrinho confirmado
         cod = Estoque.cod_estoque(estoque)
         c.execute("SELECT receita FROM Sessoes WHERE estoque=? ", ( cod,))
         check = c.fetchone()
@@ -241,17 +250,20 @@ class Sessao:
     
     @staticmethod
     def adicionar_hora_fim (estoque, hora):
+        #Insere a hora em que a sessão é encerrada
         c.execute("UPDATE Sessoes SET hora_fim=? WHERE estoque=?",( hora, Estoque.cod_estoque(estoque)))
         conn.commit()
 
     @staticmethod
     def get_vendidos (estoque):
+        #Coleta todos os produtos vendidos durante a sessão 
         c.execute("SELECT * FROM [" + estoque + "_vendidos] ORDER BY numero ")
         check = c.fetchall()
         return check
 
     @staticmethod
     def get_sessao (estoque):
+        #Coleta os dados referentes a sessão
         c.execute("SELECT receita,hora_ini,hora_fim FROM Sessoes WHERE estoque=? ",(Estoque.cod_estoque(estoque),))
         check = c.fetchall()
         return check[0]
@@ -259,6 +271,9 @@ class Sessao:
 
     @staticmethod
     def fechar_sessao (estoque):
+        #Deleta a linha  correspondente a sessão da tabela Sessões e deleta a tabela utilizada para manter
+        #os produtos vendidos na sessão.
+        #Dessa forma, quando o aplicativo é fechado durante uma sessão, os dados da sessão não são perdidos.
         with conn:
             c.execute("DELETE FROM Sessoes WHERE estoque=?", (Estoque.cod_estoque(estoque),))
         with conn:
@@ -275,6 +290,9 @@ class Prod_Vendido:
 
     
     def vendido(self):
+        #Inseri os produtos do carrinho à tabela de produtos vendidos,
+        # conferindo se o produto já existe ou não nessa tabela
+        # Retira do estoque a quantidade vendida do produto 
         c.execute("SELECT numero FROM [" + self.estoque_nome + "_vendidos] WHERE numero=? ",
                                                              (self.numero,))
         check = c.fetchone()
@@ -304,18 +322,21 @@ class Relatorio:
 
     @staticmethod
     def guardar (estoque, hora_ini, html):
+        #Guarda o arquivo html no banco
         cod = Estoque.cod_estoque(estoque)
         c.execute("INSERT INTO Relatorios VALUES (?, ?, ?)", (hora_ini, html, cod))
         conn.commit()
 
     @staticmethod
     def get_list (estoque):
+        #Coleta a lista de relatorios guardados para o estoque correspondente
         cod = Estoque.cod_estoque(estoque)
         c.execute("SELECT hora_ini FROM Relatorios WHERE estoque = ?", ( cod,))
         return (c.fetchall())
 
     @staticmethod
     def get_rel (estoque, hora_ini):
+        #Retorna o arquivo html do relatorio com a hora de inicio de sessao correspondente
         cod = Estoque.cod_estoque(estoque)
         c.execute("SELECT rel_html FROM Relatorios WHERE estoque = ? AND hora_ini = ?", ( cod, hora_ini))
         lista = c.fetchone()
@@ -323,6 +344,7 @@ class Relatorio:
 
     @staticmethod
     def del_rel (estoque, hora_ini):
+        #Retira o relatório com a hora_ini dada da tabela de relatorios
         cod = Estoque.cod_estoque(estoque)
         c.execute("DELETE FROM Relatorios WHERE estoque=? AND hora_ini = ?", (cod, hora_ini))
         conn.commit()
@@ -425,7 +447,6 @@ def pag_vendas():
 
         #Insere a sessao na tabela de Sessoes e cria uma tabela Prod_vendidos para a sessão
         data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
-        print(data_hora)
         sessao = Sessao(estoque_info, data_hora)
         sessao.sessao_nova()
 
@@ -466,6 +487,7 @@ def pag_carrinho():
         val = str1+"."+str2
         return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"], subtotal = val )
     elif "reset" in request.form:
+        #Recarrega a pagina para 'resetar' as quantidades selecionadas
         estoque = Estoque(request.form["nome_estoque"])
         li_li_tup = Estoque.gerar_li_li_tup(estoque)
         
@@ -491,6 +513,7 @@ def pag_carrinho():
         
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
     elif "cancelar" in request.form:
+        #Descarta o carrinho/Recarrega a pagina de vendas
         estoque = Estoque(request.form["nome_estoque"])
         li_li_tup = Estoque.gerar_li_li_tup(estoque)
         
@@ -499,6 +522,7 @@ def pag_carrinho():
     elif "alterar" in request.form:
         estoque = Estoque(request.form["nome_estoque"])
         # Função DIFERENCIADA para criar os nomes ( começando por 0) das informações para o request_form
+        # Mantem a quantidade de cada produto selecionado
         prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
         prod = list(prod.split(","))
 
@@ -532,11 +556,13 @@ def pag_carrinho():
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque, atualizar = True)
 
     elif "encerrar" in request.form:
+        #Vai para a pagina de sessao_fim
         return redirect(url_for('pag_sessao_fim',info=request.form["nome_estoque"]))
 
 @app.route("/sessao_fim", methods=['GET','POST'])
 def pag_sessao_fim():
     if request.method == 'GET':
+        #Finaliza a coleta de dados e apresenta o relatorio
         estoque_info = request.args.get('info')
         data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
         Sessao.adicionar_hora_fim(estoque_info, data_hora)
@@ -552,8 +578,10 @@ def pag_sessao_fim():
     if request.method == 'POST':
         estoque_info = request.form["nome_estoque"]
         if "nao_salvar" in request.form:
+            #Descarta o relatorio apresentado
             Sessao.fechar_sessao(estoque_info)
         if "salvar" in request.form:
+            #Guarda o arquivo html da pagina(com as informações apresentadas)
             li_li = Sessao.get_vendidos(estoque_info)
             sess = Sessao.get_sessao(estoque_info)
             estoque_num = Estoque.cod_estoque(estoque_info)
@@ -566,6 +594,8 @@ def pag_sessao_fim():
 @app.route("/relatorios", methods=['GET', 'POST'])
 def pag_relatorios():
     if request.method == 'GET':
+        #Apresenta a lista de relatorios disponiveis
+        #POSSIVEL ERRO: se dois ou mais relatorios forem guardados com hora_ini iguais 
         estoque = request.args.get("info")
         li = Relatorio.get_list(estoque)
         dic = OrderedDict()
@@ -575,6 +605,7 @@ def pag_relatorios():
             z = z+1
         return render_template('relatorios.html', dic = dic, estoque = estoque)
     if request.method == 'POST':
+        #Deleta do banco o relatorio selecionado da lista
         estoque = request.form["nome_estoque"]
         li = Relatorio.get_list(estoque)
         for z in range(len(li)):
@@ -595,12 +626,18 @@ def pag_relatorios():
 @app.route("/relatorio", methods=['GET','POST'])
 def pag_relatorios_rel():
     if request.method == 'GET':
+        # Apresenta o arquvivo html guardado no banco
+        # Se o nome do estoque tiver sido alterado depois da sessão de vendas do relatorio apresentado,
+        # o nome do estoque vigente durante a sessão ainda será apresentado no relatorio,
+        # visto que é o html guardado é um 'arquivo estatico' já renderizado
         estoque = request.args.get("info")
         hora_ini = request.args.get("h_ini")
         rendered = Relatorio.get_rel(estoque, hora_ini)
         return rendered
     if request.method == 'POST':
         if "baixar" in request.form:
+            # Baixa no dispositivo o arquivo em formato PDF
+            # Os botoes do arquivo html não aparecem no PDF pois a biblioteca FPDF não suporta a tag <input>
             hora_ini = request.form["hora_ini"]
             estoque = request.form["nome_estoque"]
             rendered = Relatorio.get_rel(estoque, hora_ini)
@@ -613,11 +650,13 @@ def pag_relatorios_rel():
             response.headers['Content-Disposition'] = 'attachment; filename='+estoque+'_'+hora_str+'.pdf'
             return response
         if "deletar" in request.form:
+            #Deleta o relatorio e volta para a pagina de relatorios
             hora_ini = request.form["hora_ini"]
             estoque = request.form["nome_estoque"]
             Relatorio.del_rel(estoque, hora_ini)
             return redirect(url_for('pag_relatorios',info=estoque))
         if "voltar" in request.form:
+            #Volta para a pagina de relatorios
             estoque_num = request.form["estoque_num"]
             estoque = Estoque.get_estoque_nome(estoque_num)
             return redirect(url_for('pag_relatorios',info=estoque))
