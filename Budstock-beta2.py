@@ -331,7 +331,7 @@ class Relatorio:
     def get_list (estoque):
         #Coleta a lista de relatorios guardados para o estoque correspondente
         cod = Estoque.cod_estoque(estoque)
-        c.execute("SELECT hora_ini FROM Relatorios WHERE estoque = ?", ( cod,))
+        c.execute("SELECT hora_ini FROM Relatorios WHERE estoque = ? ORDER BY hora_ini DESC", ( cod,))
         return (c.fetchall())
 
     @staticmethod
@@ -446,7 +446,7 @@ def pag_vendas():
         estoque = Estoque(estoque_info)
 
         #Insere a sessao na tabela de Sessoes e cria uma tabela Prod_vendidos para a sessão
-        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+        data_hora = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         sessao = Sessao(estoque_info, data_hora)
         sessao.sessao_nova()
 
@@ -564,7 +564,7 @@ def pag_sessao_fim():
     if request.method == 'GET':
         #Finaliza a coleta de dados e apresenta o relatorio
         estoque_info = request.args.get('info')
-        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+        data_hora = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         Sessao.adicionar_hora_fim(estoque_info, data_hora)
         li_li = Sessao.get_vendidos(estoque_info)
         sess = Sessao.get_sessao(estoque_info)
@@ -594,8 +594,7 @@ def pag_sessao_fim():
 @app.route("/relatorios", methods=['GET', 'POST'])
 def pag_relatorios():
     if request.method == 'GET':
-        #Apresenta a lista de relatorios disponiveis
-        #POSSIVEL ERRO: se dois ou mais relatorios forem guardados com hora_ini iguais 
+        #Apresenta a lista de relatorios disponiveis 
         estoque = request.args.get("info")
         li = Relatorio.get_list(estoque)
         dic = OrderedDict()
