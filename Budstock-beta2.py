@@ -80,16 +80,14 @@ class Estoque:
     @staticmethod
     def alterar_estoque(estoque_antigo, estoque_novo):
         # Altera o nome do estoque
-        print(estoque_antigo)
-        print(estoque_novo)
         c.execute("SELECT * FROM Estoques WHERE nome=?", (estoque_novo,))
         check = c.fetchone()
-        print(check)
         if not check and estoque_novo:
-            print("dentro de if")
             c.execute("UPDATE Estoques SET nome=?  WHERE nome=?",(estoque_novo, estoque_antigo))
             c.execute("ALTER TABLE [" + estoque_antigo + "] RENAME TO [" + estoque_novo + "]")
             conn.commit()
+            return True
+        return False
         
 
     def mostrar_estoque(self):
@@ -97,6 +95,28 @@ class Estoque:
         with conn:
             c.execute("SELECT numero,nome,preço,quantidade FROM [" +self.estoque+ "] ORDER BY numero")
         return (c.fetchall())
+
+    @staticmethod
+    def gerar_li_li_tup(estoque):
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        for info in prod:
+            j = str(k)
+            tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        return li_li_tup
 
     @staticmethod
     def mostrar_estoques():
@@ -357,27 +377,14 @@ def pag_estoque():
     if "n_estoque" in request.form:
         novo_estoque = request.form["novo_estoque"]
         antigo_estoque = estoque_info
-        Estoque.alterar_estoque(antigo_estoque,novo_estoque)
-        estoque = Estoque(novo_estoque)
-        # Função para criar os nomes ( começando por 0) das informações para o request_form
-        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
-        prod = list(prod.split(","))
-
-        li_li_tup = []
-        y = []
-        s = ["numero", "nome", "preço", "quantidade"]
-        z = 0
-        k = 0
-        for info in prod:
-            j = str(k)
-            tup = (s[z] + j, info)
-            y.append(tup)
-            if z == 3:
-                k = k + 1
-                li_li_tup.append(y)
-                y = []
-            z = (z + 1) % 4
-        return render_template('estoque.html', li_li_tup=li_li_tup, estoque=novo_estoque)
+        con = Estoque.alterar_estoque(antigo_estoque,novo_estoque)
+        if con:
+            estoque = Estoque(novo_estoque)
+            li_li_tup = Estoque.gerar_li_li_tup(estoque)
+            return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
+        else:
+            li_li_tup = Estoque.gerar_li_li_tup(estoque)
+            return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
 
     if request.method == "POST":
         # Checando se o Botão "Atualizar Valores" foi pressionado
@@ -393,8 +400,6 @@ def pag_estoque():
             # Função para Adicionar novo produto
             prodnovo = Produto(request.form["numeron"], request.form["nomen"], request.form["preçon"],
                             request.form["quantidaden"], estoque.estoque)
-            print("valores inseridos")
-            print(prodnovo.numero,prodnovo.nome,prodnovo.preço,prodnovo.quantidade)
             prodnovo.produto_novo()
         # Função para Deletar um produto do estoque
         else:
@@ -407,24 +412,7 @@ def pag_estoque():
                     del_produto.remover_produto()
                 z = z + 1
 
-    # Função para criar os nomes ( começando por 0) das informações para o request_form
-    prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
-    prod = list(prod.split(","))
-
-    li_li_tup = []
-    y = []
-    s = ["numero", "nome", "preço", "quantidade"]
-    z = 0
-    k = 0
-    for info in prod:
-        j = str(k)
-        tup = (s[z] + j, info)
-        y.append(tup)
-        if z == 3:
-            k = k + 1
-            li_li_tup.append(y)
-            y = []
-        z = (z + 1) % 4
+    li_li_tup = Estoque.gerar_li_li_tup(estoque)
     return render_template('estoque.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
 
 
@@ -441,25 +429,7 @@ def pag_vendas():
         sessao = Sessao(estoque_info, data_hora)
         sessao.sessao_nova()
 
-
-        # Função para criar os nomes ( começando por 0) das informações para o request_form
-        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
-        prod = list(prod.split(","))
-
-        li_li_tup = []
-        y = []
-        s = ["numero", "nome", "preço", "quantidade"]
-        z = 0
-        k = 0
-        for info in prod:
-            j = str(k)
-            tup = (s[z] + j, info)
-            y.append(tup)
-            if z == 3:
-                k = k + 1
-                li_li_tup.append(y)
-                y = []
-            z = (z + 1) % 4
+        li_li_tup = Estoque.gerar_li_li_tup(estoque)
         
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
                    
@@ -497,24 +467,7 @@ def pag_carrinho():
         return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"], subtotal = val )
     elif "reset" in request.form:
         estoque = Estoque(request.form["nome_estoque"])
-        # Função para criar os nomes ( começando por 0) das informações para o request_form
-        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
-        prod = list(prod.split(","))
-
-        li_li_tup = []
-        y = []
-        s = ["numero", "nome", "preço", "quantidade"]
-        z = 0
-        k = 0
-        for info in prod:
-            j = str(k)
-            tup = (s[z] + j, info)
-            y.append(tup)
-            if z == 3:
-                k = k + 1
-                li_li_tup.append(y)
-                y = []
-            z = (z + 1) % 4
+        li_li_tup = Estoque.gerar_li_li_tup(estoque)
         
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
 
@@ -534,52 +487,18 @@ def pag_carrinho():
             z = z+1
         Sessao.adicionar_receita(estoque.estoque, val)
 
-        # Função para criar os nomes ( começando por 0) das informações para o request_form
-        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
-        prod = list(prod.split(","))
-
-        li_li_tup = []
-        y = []
-        s = ["numero", "nome", "preço", "quantidade"]
-        z = 0
-        k = 0
-        for info in prod:
-            j = str(k)
-            tup = (s[z] + j, info)
-            y.append(tup)
-            if z == 3:
-                k = k + 1
-                li_li_tup.append(y)
-                y = []
-            z = (z + 1) % 4
+        li_li_tup = Estoque.gerar_li_li_tup(estoque)
         
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
     elif "cancelar" in request.form:
         estoque = Estoque(request.form["nome_estoque"])
-        # Função para criar os nomes ( começando por 0) das informações para o request_form
-        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
-        prod = list(prod.split(","))
-
-        li_li_tup = []
-        y = []
-        s = ["numero", "nome", "preço", "quantidade"]
-        z = 0
-        k = 0
-        for info in prod:
-            j = str(k)
-            tup = (s[z] + j, info)
-            y.append(tup)
-            if z == 3:
-                k = k + 1
-                li_li_tup.append(y)
-                y = []
-            z = (z + 1) % 4
+        li_li_tup = Estoque.gerar_li_li_tup(estoque)
         
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque)
         
     elif "alterar" in request.form:
         estoque = Estoque(request.form["nome_estoque"])
-        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        # Função DIFERENCIADA para criar os nomes ( começando por 0) das informações para o request_form
         prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
         prod = list(prod.split(","))
 
@@ -592,14 +511,11 @@ def pag_carrinho():
         u = 0
         for info in prod:
             j = str(k)
-            print(s[z])
             if "numero" + str(w) in request.form:
                 if z == 0 and int(info) == int(request.form["numero" + str(w)]):
-                    print("dentro de if numero")
                     u = 1
             if z == 3 and u == 1:
                 tup = (s[z] + j, request.form["quantidade" + str(w)])
-                print(tup)
                 w = w+1
                 u = 0
             elif z == 3:
@@ -640,23 +556,11 @@ def pag_sessao_fim():
         if "salvar" in request.form:
             li_li = Sessao.get_vendidos(estoque_info)
             sess = Sessao.get_sessao(estoque_info)
-
-            #pdf = MyFPDF()
-            #First page
-            #pdf.add_page()
             estoque_num = Estoque.cod_estoque(estoque_info)
             rendered = render_template('relatorio.html', receita = sess[0], hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info, estoque_num = estoque_num)
             Relatorio.guardar(estoque_info,sess[1], rendered)
             Sessao.fechar_sessao(estoque_info)
-            #pdf.write_html(rendered)
-
-
-            #response = make_response(pdf.output(dest='S').encode('latin-1'))
-            #response.headers['Content-Type'] = 'application/pdf'
-            #response.headers['Content-Disposition'] = 'inline; filename=output.pdf'
-
-            #return response
-            #return render_template ('sessao_fim.html', receita = sess[0], hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info, pagina = True)
+        
         return redirect(url_for('pag_estoque',info=estoque_info))
 
 @app.route("/relatorios", methods=['GET', 'POST'])
@@ -669,12 +573,10 @@ def pag_relatorios():
         for hora in li:
             dic["rel"+str(z)] = hora[0]
             z = z+1
-        print (dic)
         return render_template('relatorios.html', dic = dic, estoque = estoque)
     if request.method == 'POST':
         estoque = request.form["nome_estoque"]
         li = Relatorio.get_list(estoque)
-        print(len(li))
         for z in range(len(li)):
             if "rel"+str(z) in request.form:
                 hora_ini = li[z]
@@ -687,10 +589,7 @@ def pag_relatorios():
         for hora in li:
             dic["rel"+str(z)] = hora[0]
             z = z+1
-        print (dic)
         return render_template('relatorios.html', dic = dic, estoque = estoque)
-
-
 
 
 @app.route("/relatorio", methods=['GET','POST'])
@@ -722,40 +621,6 @@ def pag_relatorios_rel():
             estoque_num = request.form["estoque_num"]
             estoque = Estoque.get_estoque_nome(estoque_num)
             return redirect(url_for('pag_relatorios',info=estoque))
-
-
-
-
-        
-        
-        
-        
-        # li_li = request.args.get('li_li')
-        # print(li_li)
-        # hora_ini = request.args.get('hora_ini')
-        # print(hora_ini)
-        # hora_fim = request.args.get('hora_fim')
-        # print(hora_fim)
-        # receita = request.args.get('receita')
-        # print(receita)
-        # estoque = request.args.get('estoque')
-        # print(estoque)
-        # rendered = render_template('sessao_fim.html', receita = receita, hora_ini = hora_ini, hora_fim = hora_fim, li_li = li_li, estoque = estoque)
-        # pdf = MyFPDF()
-        # #First page
-        # pdf.add_page()
-        # print(rendered)
-        # pdf.write_html(rendered)
-        # pdf_rendered = pdf.output('relatorio_'+str(estoque), 'S')
-
-
-        # response = make_response(pdf_rendered)
-        # response.headers['Content-Type'] = 'application/pdf'
-        # response.headers['Content-Disposition'] = 'inline; filename=output.pdf'
-
-        # return response
-
-
 
 
 
