@@ -1,6 +1,11 @@
-from flask import Flask, render_template, url_for, flash, redirect, request
+from flask import Flask, render_template, url_for, flash, redirect, request, make_response
 import sqlite3
 from datetime import datetime
+from fpdf import FPDF, HTMLMixin
+from collections import OrderedDict
+
+class MyFPDF(FPDF, HTMLMixin):
+    pass
 
 conn = sqlite3.connect('teste.db', check_same_thread=False)
 conn.execute("PRAGMA foreign_keys = 1")
@@ -25,6 +30,18 @@ c.execute("""CREATE TABLE IF NOT EXISTS Sessoes(
 
 conn.commit()
 
+#Cria a tabela para os relatórios
+c.execute("""CREATE TABLE IF NOT EXISTS Relatorios(
+            hora_ini TEXT NOT NULL,
+            rel_html BLOB NOT NULL,
+            estoque INTEGER NOT NULL,
+            FOREIGN KEY (estoque) REFERENCES Estoques(codEstoque) ON DELETE CASCADE
+            )""")
+
+conn.commit()
+
+
+
 
 class Estoque:
     # 1 ATRIBUTO ; 1 METODOS
@@ -38,7 +55,7 @@ class Estoque:
         # Não é possível inserir o estoque se o nome já estiver ocupado
         c.execute("SELECT * FROM Estoques WHERE nome=?", (self.estoque,))
         check = c.fetchone()
-        if not check:
+        if not check and self.estoque:
             with conn:
                 c.execute("INSERT INTO Estoques (nome) VALUES (?)", (self.estoque,))
             with conn:
@@ -60,8 +77,23 @@ class Estoque:
         with conn:
             c.execute("DROP TABLE IF EXISTS ["+nome_estoque+"]")
 
+    @staticmethod
+    def alterar_estoque(estoque_antigo, estoque_novo):
+        # Altera o nome do estoque
+        print(estoque_antigo)
+        print(estoque_novo)
+        c.execute("SELECT * FROM Estoques WHERE nome=?", (estoque_novo,))
+        check = c.fetchone()
+        print(check)
+        if not check and estoque_novo:
+            print("dentro de if")
+            c.execute("UPDATE Estoques SET nome=?  WHERE nome=?",(estoque_novo, estoque_antigo))
+            c.execute("ALTER TABLE [" + estoque_antigo + "] RENAME TO [" + estoque_novo + "]")
+            conn.commit()
+        
+
     def mostrar_estoque(self):
-        # Para testes: printa o estoque
+        # Retorna uma lista dos produtos dentro do estoque
         with conn:
             c.execute("SELECT numero,nome,preço,quantidade FROM [" +self.estoque+ "] ORDER BY numero")
         return (c.fetchall())
@@ -73,12 +105,18 @@ class Estoque:
         return c.fetchall()
 
     @staticmethod
+    def get_estoque_nome(estoque_num):
+        # Para testes: printa os estoques no banco
+        c.execute("SELECT nome FROM Estoques WHERE codEstoque=?",(estoque_num,))
+        lista = c.fetchone()
+        return lista[0]
+
+    @staticmethod
     def cod_estoque(nome):
         # retorna a chave do estoque
         c.execute("SELECT * FROM Estoques WHERE nome = ?", ( nome,))
         lista = c.fetchone()
         return lista[0]
-
 
 class Produto:
     # 5 ATRIBUTOS; 3 METODOS
@@ -206,8 +244,6 @@ class Sessao:
         with conn:
             c.execute("DROP TABLE  ["+ estoque +"_vendidos]")
 
-
-
 class Prod_Vendido:
 
     def __init__(self, numero, nome, quantidade, preço, estoque_nome):
@@ -242,6 +278,33 @@ class Prod_Vendido:
         x = x - int(self.quantidade)
         c.execute("UPDATE [" + self.estoque_nome + "] SET quantidade=?  WHERE numero=?",
                                                                     ( x, self.numero))
+        conn.commit()
+
+class Relatorio:
+
+    @staticmethod
+    def guardar (estoque, hora_ini, html):
+        cod = Estoque.cod_estoque(estoque)
+        c.execute("INSERT INTO Relatorios VALUES (?, ?, ?)", (hora_ini, html, cod))
+        conn.commit()
+
+    @staticmethod
+    def get_list (estoque):
+        cod = Estoque.cod_estoque(estoque)
+        c.execute("SELECT hora_ini FROM Relatorios WHERE estoque = ?", ( cod,))
+        return (c.fetchall())
+
+    @staticmethod
+    def get_rel (estoque, hora_ini):
+        cod = Estoque.cod_estoque(estoque)
+        c.execute("SELECT rel_html FROM Relatorios WHERE estoque = ? AND hora_ini = ?", ( cod, hora_ini))
+        lista = c.fetchone()
+        return lista[0]
+
+    @staticmethod
+    def del_rel (estoque, hora_ini):
+        cod = Estoque.cod_estoque(estoque)
+        c.execute("DELETE FROM Relatorios WHERE estoque=? AND hora_ini = ?", (cod, hora_ini))
         conn.commit()
 
 
@@ -289,6 +352,33 @@ def pag_estoque():
     # Checando de o Botão " Vendas" foi pressionado
     if "vendas" in request.form:
         return redirect(url_for('pag_vendas',info=estoque.estoque))
+    if "relatorios" in request.form:
+        return redirect(url_for('pag_relatorios',info=estoque.estoque))
+    if "n_estoque" in request.form:
+        novo_estoque = request.form["novo_estoque"]
+        antigo_estoque = estoque_info
+        Estoque.alterar_estoque(antigo_estoque,novo_estoque)
+        estoque = Estoque(novo_estoque)
+        # Função para criar os nomes ( começando por 0) das informações para o request_form
+        prod = str(estoque.mostrar_estoque()).translate({ord(c): '' for c in "[]()'"})
+        prod = list(prod.split(","))
+
+        li_li_tup = []
+        y = []
+        s = ["numero", "nome", "preço", "quantidade"]
+        z = 0
+        k = 0
+        for info in prod:
+            j = str(k)
+            tup = (s[z] + j, info)
+            y.append(tup)
+            if z == 3:
+                k = k + 1
+                li_li_tup.append(y)
+                y = []
+            z = (z + 1) % 4
+        return render_template('estoque.html', li_li_tup=li_li_tup, estoque=novo_estoque)
+
     if request.method == "POST":
         # Checando se o Botão "Atualizar Valores" foi pressionado
         if "atualizar" in request.form:
@@ -398,6 +488,12 @@ def pag_carrinho():
                 w = w + 1
                 dic = {}
             z = z+1
+        str1 = val
+        str1 = str(str1).split('.', 1)[0]
+        str2 = val
+        str2 = str(str2).split('.', 1)[1]
+        str2 = str2[0:2]
+        val = str1+"."+str2
         return render_template('carrinho.html', li_dic = li_dic, estoque = request.form["nome_estoque"], subtotal = val )
     elif "reset" in request.form:
         estoque = Estoque(request.form["nome_estoque"])
@@ -520,21 +616,144 @@ def pag_carrinho():
         return render_template('vendas.html', li_li_tup=li_li_tup, estoque=estoque.estoque, atualizar = True)
 
     elif "encerrar" in request.form:
-        return redirect(url_for('pag_relatorio',info=request.form["nome_estoque"]))
+        return redirect(url_for('pag_sessao_fim',info=request.form["nome_estoque"]))
 
-@app.route("/relatorio", methods=['GET'])
-def pag_relatorio():
+@app.route("/sessao_fim", methods=['GET','POST'])
+def pag_sessao_fim():
     if request.method == 'GET':
         estoque_info = request.args.get('info')
         data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
         Sessao.adicionar_hora_fim(estoque_info, data_hora)
         li_li = Sessao.get_vendidos(estoque_info)
         sess = Sessao.get_sessao(estoque_info)
-        Sessao.fechar_sessao(estoque_info)
-        return render_template('sessao_fim.html', receita = sess[0], hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info)
-            
+        str1 = sess[0]
+        str1 = str(str1).split('.', 1)[0]
+        str2 = sess[0]
+        str2 = str(str2).split('.', 1)[1]
+        str2 = str2[0:2]
+        receita = str1+"."+str2
+        return render_template('sessao_fim.html', receita = receita, hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info, pagina = True)
+    if request.method == 'POST':
+        estoque_info = request.form["nome_estoque"]
+        if "nao_salvar" in request.form:
+            Sessao.fechar_sessao(estoque_info)
+        if "salvar" in request.form:
+            li_li = Sessao.get_vendidos(estoque_info)
+            sess = Sessao.get_sessao(estoque_info)
+
+            #pdf = MyFPDF()
+            #First page
+            #pdf.add_page()
+            estoque_num = Estoque.cod_estoque(estoque_info)
+            rendered = render_template('relatorio.html', receita = sess[0], hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info, estoque_num = estoque_num)
+            Relatorio.guardar(estoque_info,sess[1], rendered)
+            Sessao.fechar_sessao(estoque_info)
+            #pdf.write_html(rendered)
 
 
+            #response = make_response(pdf.output(dest='S').encode('latin-1'))
+            #response.headers['Content-Type'] = 'application/pdf'
+            #response.headers['Content-Disposition'] = 'inline; filename=output.pdf'
+
+            #return response
+            #return render_template ('sessao_fim.html', receita = sess[0], hora_ini = sess[1], hora_fim = sess[2], li_li = li_li, estoque = estoque_info, pagina = True)
+        return redirect(url_for('pag_estoque',info=estoque_info))
+
+@app.route("/relatorios", methods=['GET', 'POST'])
+def pag_relatorios():
+    if request.method == 'GET':
+        estoque = request.args.get("info")
+        li = Relatorio.get_list(estoque)
+        dic = OrderedDict()
+        z = 0
+        for hora in li:
+            dic["rel"+str(z)] = hora[0]
+            z = z+1
+        print (dic)
+        return render_template('relatorios.html', dic = dic, estoque = estoque)
+    if request.method == 'POST':
+        estoque = request.form["nome_estoque"]
+        li = Relatorio.get_list(estoque)
+        print(len(li))
+        for z in range(len(li)):
+            if "rel"+str(z) in request.form:
+                hora_ini = li[z]
+                hora_ini = hora_ini[0]
+                Relatorio.del_rel(estoque, hora_ini)
+
+        li = Relatorio.get_list(estoque)
+        dic = OrderedDict()
+        z = 0
+        for hora in li:
+            dic["rel"+str(z)] = hora[0]
+            z = z+1
+        print (dic)
+        return render_template('relatorios.html', dic = dic, estoque = estoque)
+
+
+
+
+@app.route("/relatorio", methods=['GET','POST'])
+def pag_relatorios_rel():
+    if request.method == 'GET':
+        estoque = request.args.get("info")
+        hora_ini = request.args.get("h_ini")
+        rendered = Relatorio.get_rel(estoque, hora_ini)
+        return rendered
+    if request.method == 'POST':
+        if "baixar" in request.form:
+            hora_ini = request.form["hora_ini"]
+            estoque = request.form["nome_estoque"]
+            rendered = Relatorio.get_rel(estoque, hora_ini)
+            hora_str = str(hora_ini).translate({ord(c): '' for c in " "})
+            pdf = MyFPDF()
+            pdf.add_page()
+            pdf.write_html(rendered)
+            response = make_response(pdf.output(dest='S').encode('latin-1'))
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = 'attachment; filename='+estoque+'_'+hora_str+'.pdf'
+            return response
+        if "deletar" in request.form:
+            hora_ini = request.form["hora_ini"]
+            estoque = request.form["nome_estoque"]
+            Relatorio.del_rel(estoque, hora_ini)
+            return redirect(url_for('pag_relatorios',info=estoque))
+        if "voltar" in request.form:
+            estoque_num = request.form["estoque_num"]
+            estoque = Estoque.get_estoque_nome(estoque_num)
+            return redirect(url_for('pag_relatorios',info=estoque))
+
+
+
+
+        
+        
+        
+        
+        # li_li = request.args.get('li_li')
+        # print(li_li)
+        # hora_ini = request.args.get('hora_ini')
+        # print(hora_ini)
+        # hora_fim = request.args.get('hora_fim')
+        # print(hora_fim)
+        # receita = request.args.get('receita')
+        # print(receita)
+        # estoque = request.args.get('estoque')
+        # print(estoque)
+        # rendered = render_template('sessao_fim.html', receita = receita, hora_ini = hora_ini, hora_fim = hora_fim, li_li = li_li, estoque = estoque)
+        # pdf = MyFPDF()
+        # #First page
+        # pdf.add_page()
+        # print(rendered)
+        # pdf.write_html(rendered)
+        # pdf_rendered = pdf.output('relatorio_'+str(estoque), 'S')
+
+
+        # response = make_response(pdf_rendered)
+        # response.headers['Content-Type'] = 'application/pdf'
+        # response.headers['Content-Disposition'] = 'inline; filename=output.pdf'
+
+        # return response
 
 
 

@@ -17,7 +17,14 @@
             <body>
                 <div id="background">
 
-                    <h2>Nome do Estoque : {{estoque}}</h2>
+                    
+                    <h2>Nome do Estoque : {{estoque}}
+                    <form action="/estoque" method= "post">
+                    <input style="display:none;" type="text" id="novo_estoque" name="novo_estoque"> 
+                    <input  style="display:none;" id="n_estoque" type="submit" name="n_estoque" value="Confirmar">
+                    <input type="hidden" name="nome_estoque" value="{{estoque}}">
+                    </form>
+                    <button type="button"  onclick="novo_estoque()">Renomear Estoque</button></h2>
                     <button type="button"  onclick="novo_produt()">Novo Produto</button>
                     <form action="/estoque" id="atualizar" method="POST">
                         <table>
@@ -66,6 +73,18 @@
                         }else
                         {
                           document.getElementById("novoprod").style.display = 'none';
+                        }
+                       }
+
+                    function novo_estoque() {
+                        if( document.getElementById("novo_estoque").style.display=='none' )
+                        {
+                          document.getElementById("novo_estoque").style.display = 'table-row'; // set to table-row instead of an empty string
+                          document.getElementById("n_estoque").style.display = 'table-row';
+                        }else
+                        {
+                          document.getElementById("novo_estoque").style.display = 'none';
+                          document.getElementById("n_estoque").style.display = 'none';
                         }
                        }
                     </script>
